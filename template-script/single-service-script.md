@@ -101,20 +101,55 @@ Example ConfigMap, Secret, Resource, Replica, HPA structures preserved.
 ## Execution Definition
 
 ### Options
+กำหนด executions corresponding ให้กับ environment variable SCENARIO.
 
 ```ts
 export const options = c.customOptions
 ```
 
 ### Execution Function
-
+แต่ละ ชื่อของ execution function จะต้องสามารถอ้างกลับไปใน flowList ได้
 ```ts
 export function adaptorEmsFinancial() {
   // ...
 }
 ```
+ภายใน execution function จะมี subsections ที่สามารถ construct และ สร้าง API requests ได้
 
-### API Binding, Properties, Request & Checks
+### API Endpoint
+
+ใน section นี้จะไว้กำหนด flowIdx และ serviceIdx ซึ่งเอาไว้ใช้ map และ get isolated service endpoint ใน isolated namespace. flowIdx และ serviceIdx ซึ่งมันจะขึ้นอยู่กับ indices ของ serviceนั้นๆภายใน flowMap.
+นอกเหนือจากนี้ setIdx จะเซฟ indexes ลง K6 state ซึ่งจะเอาไปใช้ในการกำหนดค่าเพื่อ identify ของ response ระหว่างการทำ metrics profiling
+
+```ts
+let flowIdx = 0, serviceIdx = 0
+let idx = setIdx(flowIdx, )
+const singleApiEndpoint = getEndpoint(c, idx.flow, idx.service)
+```
+
+### API Properties
+
+Section ต่อไปนี้จะกำหนด method, path และ body ของ API
+
+```ts
+const singleApiMethod = 'POST'
+const singleApiPath = '/adaptor-ems-financial/api/v1/confirm'
+const singleApiBody = {
+  channelId: 'xxx',
+}
+const singleApiParams = {
+  cookies: {},
+  headers: {
+    Authorization: 'Bearer xxx',
+  },
+}
+```
+
+### API Request
+
+ใน section นี้จะสร้าง group สำหรับ check function เพื่อเอาไว้ categorized แต่ละ flow ใน flowList
+ภายใต้แต่ละ group, res คือ response ของ session.request ซึ่งจะมี API Properties ตาม section ด้านบน
+res จะถูกตรวจสอบ หากมี response body และ property code เท่ากับ 1000 จะถือว่าสำเร็จตามที่ระบุในโปรเจ็ค glo และ metrics profiling จะถูกทำตามวิธี session.request
 
 ```ts
 group(c.flowList[flowIdx], function () {
@@ -133,7 +168,12 @@ group(c.flowList[flowIdx], function () {
 ---
 
 ## Summary Function
+Tasks:
 
+1. Print results to stdout
+2. Generate SLA and publish to Confluence
+3. (CI) Save SLA to local system
+   
 ```ts
 export function handleSummary(data) {
   return generateResults(c, session, data)
